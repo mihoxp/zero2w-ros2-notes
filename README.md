@@ -155,6 +155,19 @@ sudo python3 tools/i2c_scan.py      # /dev/i2c-1: 0x10 0x62
   相機 OK, PID = 0x3660                                              ← OV3660
   ```
 
+## 8.5 CSI 攝影機（OV5647）
+
+- 偵測：`ov5647 10-0036` + `bcm2835_unicam` → `/dev/video0`（`vcgencmd get_camera` 的 `detected=0` 是舊相機堆疊，不用理會）
+- Ubuntu 22.04 的 libcamera 是 2020 年版本，不採用；只裝 `v4l-utils` 抓 10-bit 原始 Bayer（GBRG）
+- `tools/camera_snapshot.py`：軟體自動曝光 + 半解析度解馬賽克 + 灰世界白平衡 + gamma，輸出 JPEG
+  ```bash
+  sudo apt install -y v4l-utils
+  python3 tools/camera_snapshot.py photo.jpg 2592 1944   # 全幅，輸出 1296x972，約 9 秒、110 MB RAM
+  python3 tools/camera_snapshot.py photo.jpg 1296 972    # 輸出 648x486，約 3.5 秒
+  ```
+- 感光模式：2592×1944、1920×1080（裁切）、1296×972（2×2 合併、全視角）、640×480
+- CMA 只有 64 MB，所以只用 2 個影像緩衝區
+
 ## 9. V7RC 藍牙遙控（ROS2）
 
 ```
@@ -199,3 +212,4 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
 | `motor_hat_info.py` | DFRobot 馬達驅動板唯讀檢查 |
 | `ups_lite.py` | UPS-Lite v1.3 電壓、電量、外接電源 |
 | `esp32_boot_log.py` | 經 USB 序列晶片重置 ESP32 並印出開機訊息 |
+| `camera_snapshot.py` | OV5647 拍照（免 libcamera） |

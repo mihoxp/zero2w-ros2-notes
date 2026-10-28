@@ -199,6 +199,30 @@ sudo journalctl -u color-vision -f
 
 參數：`mode`（`objects` 預設／`lamp`）、`width`/`height`、`detect_scale`（0.5）、`stable_frames`（3）、`min_score`（5）、`publish_image`、`image_rate`
 
+### AprilTag 指令標記
+
+同一個節點也偵測 **AprilTag 36h11** 標記方塊（OpenCV `cv2.aruco`，免另外安裝）：
+
+| Tag ID | 指令 |
+|---|---|
+| 1 | RIGHT 右轉 |
+| 2 | SLOW 減速 |
+| 3 | FAST 加速 |
+| 4 | LEFT 左轉 |
+
+| Topic | 內容 |
+|---|---|
+| `/tag_command` | 看到標記時發布一次指令（離開畫面 2 秒後再出現才會再發布） |
+| `/tag_detections` | JSON：`[{"id","command","cx","cy","size"}]`，`size` 越大代表越近 |
+
+參數：`enable_tags`、`tag_family`（`DICT_APRILTAG_36h11`）、`tag_commands`（`["1:RIGHT","2:SLOW","3:FAST","4:LEFT"]`）、`tag_rate`（5 Hz）、`tag_repeat_after`（2 秒）
+
+實測（640×480）：
+- 標記約 60 px 寬時，10/10 張畫面都讀到；每次偵測約 104 ms（單執行緒）
+- QR Code 每張約 135 ms，且不容易斜看，所以改用 AprilTag
+- OpenCV 預設多執行緒在 Zero 2W 上反而浪費：4 執行緒 153 ms CPU vs 1 執行緒 104 ms，節點裡用 `cv2.setNumThreads(1)`
+- 顏色 + AprilTag 一起跑：CPU 約 177%、顏色 20 FPS、標記 5 Hz
+
 注意：
 - `package.xml` 的 XML 註解裡不能有 `--`，否則 colcon 解析失敗、套件不會註冊到 ROS2（`Package not found`）
 - Zero 2W 上 `ros2 topic echo` 啟動約 7 秒，用 `timeout` 測試要給足時間

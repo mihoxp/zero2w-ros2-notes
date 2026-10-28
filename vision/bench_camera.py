@@ -2,10 +2,15 @@
 """Measure camera FPS on the Zero 2 W and save the last frame. Usage: python3 bench_camera.py [w h] [frames]"""
 import sys
 import time
+from pathlib import Path
 
 import cv2
 
-from ov5647_camera import OV5647Camera
+# Camera and detection code live in the color_vision ROS2 package
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ros2_ws/src/color_vision"))
+
+from color_vision.ov5647_camera import OV5647Camera  # noqa: E402
+
 
 w, h = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (640, 480)
 n = int(sys.argv[3]) if len(sys.argv) > 3 else 60

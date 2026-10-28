@@ -168,6 +168,32 @@ sudo python3 tools/i2c_scan.py      # /dev/i2c-1: 0x10 0x62
 - 感光模式：2592×1944、1920×1080（裁切）、1296×972（2×2 合併、全視角）、640×480
 - CMA 只有 64 MB，所以只用 2 個影像緩衝區
 
+## 8.6 顏色辨識 ROS2 節點（color_vision）
+
+OpenCV 用 pip 裝（apt 的 `python3-opencv` 要 175 個套件）：
+
+```bash
+sudo apt install -y python3-pip v4l-utils
+pip3 install --user --no-deps opencv-python-headless==4.10.0.84
+```
+
+- `ov5647_camera.py`：OpenCV 讀 10-bit packed Bayer，每 5 bytes 取前 4 bytes 就是 8-bit 原始影像，再用 OpenCV 解馬賽克；軟體自動曝光 + 灰世界白平衡；640×480 約 29 FPS
+- `traffic_light.py`：HSV 找紅/黃/綠、夠圓、夠亮的區塊。`detect()` 給亮燈用；`detect_objects()` 給色塊、標誌用（放寬飽和度/亮度，用凸包判斷形狀）
+- 節點 `ros2 run color_vision color_detector`（約 20 FPS）
+
+| Topic | 型別 | 內容 |
+|---|---|---|
+| `/traffic_light/state` | `std_msgs/String` | `red` / `yellow` / `green` / `none`（連續 3 張相同才切換） |
+| `/color_detections` | `std_msgs/String` | JSON：`[{"color","x","y","w","h","score"}]`，原始解析度座標，分數高的在前 |
+| `/color_vision/image/compressed` | `sensor_msgs/CompressedImage` | 標註後的 JPEG（`publish_image:=true`，預設 2 Hz） |
+
+參數：`mode`（`objects` 預設／`lamp`）、`width`/`height`、`detect_scale`（0.5）、`stable_frames`（3）、`min_score`（5）、`publish_image`、`image_rate`
+
+注意：
+- `package.xml` 的 XML 註解裡不能有 `--`，否則 colcon 解析失敗、套件不會註冊到 ROS2（`Package not found`）
+- Zero 2W 上 `ros2 topic echo` 啟動約 7 秒，用 `timeout` 測試要給足時間
+- 實體紅綠燈模型的燈罩本身有顏色，沒亮的燈也會被當成候選；`lamp` 模式還需要比較亮度才能分出哪顆亮著
+
 ## 9. V7RC 藍牙遙控（ROS2）
 
 ```

@@ -6,11 +6,16 @@ Prints the state about twice a second and saves the latest annotated frame to
 """
 import sys
 import time
+from pathlib import Path
 
 import cv2
 
-import traffic_light
-from ov5647_camera import OV5647Camera
+# Camera and detection code live in the color_vision ROS2 package
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ros2_ws/src/color_vision"))
+
+from color_vision import traffic_light  # noqa: E402
+from color_vision.ov5647_camera import OV5647Camera  # noqa: E402
+
 
 seconds = float(sys.argv[1]) if len(sys.argv) > 1 else 15
 cam = OV5647Camera(640, 480)

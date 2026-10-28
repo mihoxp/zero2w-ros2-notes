@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>color_vision</name>
+  <version>0.1.0</version>
+  <description>OV5647 camera colour detection (traffic light state, red/yellow/green objects)</description>
+  <maintainer email="pi@example.com">pi</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <!-- Also needs OpenCV (pip package opencv-python-headless) and v4l-utils (apt) -->
+  <exec_depend>v4l-utils</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

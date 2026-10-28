@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """UPS-Lite v1.3 (CW2015 fuel gauge at I2C 0x62): battery voltage, charge and external power.
 
-The CW2015 starts in sleep mode after power-up (MODE reg 0x0A = 0xC0), so it is woken
-with a quick start (0x30), as in the vendor script. GPIO4 is HIGH while external power is plugged in.
+The CW2015 starts in sleep mode after power-up (MODE reg 0x0A = 0xC0). It is woken with a
+quick-start pulse: MODE = 0x30, then back to 0x00 (normal). The vendor script writes 0x30 and
+leaves it set, which keeps SOC at 0 % or stale. GPIO4 is HIGH while external power is plugged in.
 Usage: sudo python3 ups_lite.py [--watch]
 """
 import fcntl
@@ -39,9 +40,11 @@ def external_power():
 def main():
     fd = os.open("/dev/i2c-1", os.O_RDWR)
     fcntl.ioctl(fd, I2C_SLAVE, ADDR)
-    if read(fd, REG_MODE, 1)[0] & 0xC0 == 0xC0:  # sleeping
-        os.write(fd, bytes([REG_MODE, 0x30, 0x00]))  # quick start, same as write_word_data(0x62, 0x0A, 0x30)
-        time.sleep(1.5)
+    if read(fd, REG_MODE, 1)[0] != 0x00:  # sleeping, or quick-start bits left set
+        os.write(fd, bytes([REG_MODE, 0x30]))  # quick start
+        time.sleep(0.05)
+        os.write(fd, bytes([REG_MODE, 0x00]))  # back to normal so SOC is computed
+        time.sleep(2)
     while True:
         v = read(fd, REG_VCELL, 2)
         soc = read(fd, REG_SOC, 2)

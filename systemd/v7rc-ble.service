@@ -1,0 +1,15 @@
+[Unit]
+Description=V7RC Bluetooth (BLE) relay to v7rc_bridge (UDP 6188)
+After=bluetooth.service v7rc-car.service
+Requires=bluetooth.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=V7RC_BLE_NAME=Zero2W-Rover
+ExecStart=/usr/bin/python3 -u /home/pi/ros2_ws/v7rc_ble_relay.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

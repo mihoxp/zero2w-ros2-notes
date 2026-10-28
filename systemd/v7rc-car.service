@@ -1,0 +1,15 @@
+[Unit]
+Description=ROS2 DFRobot motor driver + V7RC bridge
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/bin/bash /home/pi/ros2_ws/v7rc_start.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

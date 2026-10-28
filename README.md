@@ -155,7 +155,37 @@ sudo python3 tools/i2c_scan.py      # /dev/i2c-1: 0x10 0x62
   相機 OK, PID = 0x3660                                              ← OV3660
   ```
 
-## 9. 其他注意事項
+## 9. V7RC 藍牙遙控（ROS2）
+
+```
+手機 V7RC ──BLE──> v7rc_ble_relay（廣播 Zero2W-Rover）──UDP 6188──> v7rc_bridge ──/cmd_vel──> dfrobot_motor_driver ──I2C──> M1/M2
+```
+
+| 檔案 | 說明 |
+|---|---|
+| `ros2_ws/src/dfrobot_motor_driver/` | `/cmd_vel` → DFR0592，開迴路差速（不使用編碼器），0.5 秒沒指令停車 |
+| `ros2_ws/src/v7rc_bridge/` | V7RC 車輛模式（`SRV`）→ `/cmd_vel`，斷線停車、死區、原地轉最低輪速 |
+| `scripts/v7rc_ble_relay.py` | BlueZ D-Bus 的 Nordic UART 服務，名稱由 `V7RC_BLE_NAME` 設定 |
+| `scripts/v7rc_start.sh` | 啟動 motor_driver + v7rc_bridge（含參數） |
+| `systemd/v7rc-car.service`、`systemd/v7rc-ble.service` | 開機自動啟動 |
+
+安裝：
+
+```bash
+cp -r ros2_ws/src/* ~/ros2_ws/src/
+cd ~/ros2_ws && colcon build --symlink-install
+cp scripts/v7rc_start.sh scripts/v7rc_ble_relay.py ~/ros2_ws/ && chmod +x ~/ros2_ws/v7rc_start.sh
+sudo cp systemd/*.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
+```
+
+- `/dev/i2c-1` 屬於 `dialout` 群組，`pi` 不需 sudo 就能控制馬達
+- V7RC App：連線選**藍牙**、選 `Zero2W-Rover`、介面選**車輛**模式（App 一連上會送一筆 `FAL...#`，會被忽略）
+- 實測搖桿：前進推到底 `linear.x = 0.30`，右轉推到底 `angular.z = -3.00`，輕推原地轉從約 2.4 rad/s 起跳
+- DFR0592 暫存器：`0x03` 模式、`0x0E` PWM 頻率/50、`0x0F`/`0x12` 方向（1 CW、2 CCW、5 STOP）、`0x10`/`0x13` 占空比 [整數%, 十分位]
+- **待辦**：馬達裝好後架高測試左右輪與方向（預設 M1 左、M2 右、右輪反轉），再調 `max_wheel_speed`、`wheel_separation`
+
+## 10. 其他注意事項
 
 - 接了 UPS 的 Pi 拔電源不會斷電，關機請用 `sudo shutdown -h now`，等綠燈熄滅再關 UPS 開關
 - `dmesg` 需要 sudo（Ubuntu 預設限制）

@@ -187,6 +187,16 @@ pip3 install --user --no-deps opencv-python-headless==4.10.0.84
 | `/color_detections` | `std_msgs/String` | JSON：`[{"color","x","y","w","h","score"}]`，原始解析度座標，分數高的在前 |
 | `/color_vision/image/compressed` | `sensor_msgs/CompressedImage` | 標註後的 JPEG（`publish_image:=true`，預設 2 Hz） |
 
+開機自動啟動：`systemd/color-vision.service`（`User=pi`，預設不發布影像）
+
+```bash
+sudo cp systemd/color-vision.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now color-vision
+sudo journalctl -u color-vision -f
+```
+
+實測：開機約 1 分鐘後開始發布，三個服務（color-vision、v7rc-car、v7rc-ble）同時執行時約 21 FPS，可用記憶體約 107 MB
+
 參數：`mode`（`objects` 預設／`lamp`）、`width`/`height`、`detect_scale`（0.5）、`stable_frames`（3）、`min_score`（5）、`publish_image`、`image_rate`
 
 注意：

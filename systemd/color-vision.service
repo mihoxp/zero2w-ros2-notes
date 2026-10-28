@@ -1,0 +1,18 @@
+[Unit]
+Description=ROS2 color_vision: OV5647 camera traffic light / colour object detection
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+# Without these the node's log lines sit in a buffer and never reach the journal
+Environment=PYTHONUNBUFFERED=1 RCUTILS_LOGGING_BUFFERED_STREAM=0
+# Annotated image off by default to save CPU; add -p publish_image:=true to view it
+ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run color_vision color_detector --ros-args -p mode:=objects"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

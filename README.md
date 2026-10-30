@@ -284,7 +284,7 @@ time,uptime_s,throttled,flags,core_v,temp_c,battery_v,battery_pct,ext_power
 | 檔案 | 說明 |
 |---|---|
 | `ros2_ws/src/dfrobot_motor_driver/` | `/cmd_vel` → DFR0592，開迴路差速（不使用編碼器），0.5 秒沒指令停車 |
-| `ros2_ws/src/v7rc_bridge/` | V7RC 車輛模式（`SRV`）→ `/cmd_vel`，斷線停車、死區、原地轉最低輪速 |
+| `ros2_ws/src/v7rc_bridge/` | V7RC 車輛（`SRV`）/ 坦克（`SRT`）模式 → `/cmd_vel` + 鏡頭雲台，斷線停車、死區、原地轉最低輪速 |
 | `scripts/v7rc_ble_relay.py` | BlueZ D-Bus 的 Nordic UART 服務，名稱由 `V7RC_BLE_NAME` 設定 |
 | `scripts/v7rc_start.sh` | 啟動 motor_driver + v7rc_bridge（含參數） |
 | `systemd/v7rc-car.service`、`systemd/v7rc-ble.service` | 開機自動啟動 |
@@ -300,7 +300,20 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
 ```
 
 - `/dev/i2c-1` 屬於 `dialout` 群組，`pi` 不需 sudo 就能控制馬達
-- V7RC App：連線選**藍牙**、選 `Zero2W-Rover`、介面選**車輛**模式（App 一連上會送一筆 `FAL...#`，會被忽略）
+- V7RC App：連線選**藍牙**、選 `Zero2W-Rover`（App 一連上會送一筆 `FAL...#`，會被忽略）
+  - **車輛模式**（`SRV`）：只能開車。實測 CH3、CH4 永遠是 1500（兩支搖桿各只能動一個方向）
+  - **坦克模式**（`SRT`）：開車 + 鏡頭雲台。實測四個通道都會動：
+
+    | 通道 | 搖桿 | 功能 |
+    |---|---|---|
+    | CH1 | 左搖桿 左／右 | 轉向（同車輛模式的 CH1） |
+    | CH2 | 左搖桿 上／下 | 前進／後退 |
+    | CH3 | 右搖桿 左／右 | 鏡頭水平（往右推 = 往右轉，`invert_pan` 預設 true） |
+    | CH4 | 右搖桿 上／下 | 鏡頭垂直（往上推 = 往上） |
+
+    鏡頭是**速度模式**：推越多轉越快（滿推 60°/s），放開就停在原角度；發布到 `/pan_tilt/cmd`
+  - 雲台相關參數：`pan_tilt_enable`、`pan_input`/`tilt_input`（3/4）、`invert_pan`/`invert_tilt`、`pan_tilt_rate`、`pan_min`/`pan_max`、`tilt_min`/`tilt_max`
+  - 想看 App 實際送出的數值：`v7rc_bridge` 加 `-p log_channels:=true`（也會記錄其他模式的原始封包）
 - 實測搖桿：前進推到底 `linear.x = 0.30`，右轉推到底 `angular.z = -3.00`，輕推原地轉從約 2.4 rad/s 起跳
 - DFR0592 暫存器：`0x03` 模式、`0x0E` PWM 頻率/50、`0x0F`/`0x12` 方向（1 CW、2 CCW、5 STOP）、`0x10`/`0x13` 占空比 [整數%, 十分位]
 - **待辦**：馬達裝好後架高測試左右輪與方向（預設 M1 左、M2 右、右輪反轉），再調 `max_wheel_speed`、`wheel_separation`

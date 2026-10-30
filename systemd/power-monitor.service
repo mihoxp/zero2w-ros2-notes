@@ -1,0 +1,15 @@
+[Unit]
+Description=Log Zero 2 W power health (throttled bits, core voltage, UPS battery) every 10 s
+# Start as early as possible so a brown-out during boot still leaves a trace
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target pan-tilt.service color-vision.service v7rc-car.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -u /home/pi/zero2w-tools/power_monitor.py /var/log/power-monitor.csv 10
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

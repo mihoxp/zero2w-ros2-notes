@@ -251,6 +251,29 @@ ros2 topic pub --once /pan_tilt/cmd geometry_msgs/msg/Vector3 "{x: 30.0, y: 10.0
 
 - 啟動時回中間，結束時放鬆伺服馬達（PWM full OFF）
 - 實測：水平 ±30°、垂直 ±20° 方向與幅度正確
+- 開機自動啟動：`systemd/pan-tilt.service`
+
+### ⚠️ Servo pHAT 供電
+
+依 [SparkFun Pi Servo pHAT v2 說明](https://learn.sparkfun.com/tutorials/pi-servo-phat-v2-hookup-guide/hardware-overview)：
+- pHAT 的 USB-C **同時供電給伺服馬達和 Pi**（Power Isolation jumper 出廠是接通的），伺服馬達的電流尖峰會直接拉低 Pi 的 5V
+- USB-C 端有保險絲（2.5 A 持續、5 A 斷開），請用 5V 3A 以上電源，不要接電腦 USB（約 0.5 A）
+- Zero 這類板子沒有防逆流保護；UPS-Lite 也接在 5V 上時，等於兩個電源並聯
+- 實測一次：開機中途日誌在第 28 秒中斷（疑似斷電），另一次相機初始化時出現 kernel Oops；之後重開與伺服滿幅擺動 12 次都沒有 under-voltage，原因尚未確認
+
+### 電源監控（power-monitor）
+
+`tools/power_monitor.py` + `systemd/power-monitor.service`：開機早期就啟動，每 10 秒寫一行到 `/var/log/power-monitor.csv`（每行 fsync，斷電也留得下來）：
+
+```
+time,uptime_s,throttled,flags,core_v,temp_c,battery_v,battery_pct,ext_power
+2026-10-30 22:20:06,502,0x0,ok,1.2688,48.3,4.141,97.2,1
+```
+
+- `flags`：`UV`（現在電壓不足）、`uv-seen`（開機後曾發生）、`CAP`/`THR`/`TEMP` 等；這些「曾發生」的位元重開機就清掉，所以 CSV 是斷電後唯一的線索
+- 每次啟動會寫一行 `BOOT`；兩個 `BOOT` 之間最後一行的時間 ≈ 當機或斷電的時間
+- 狀態改變也會寫進 journal：`sudo journalctl -u power-monitor`
+
 
 ## 9. V7RC 藍牙遙控（ROS2）
 

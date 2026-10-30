@@ -1,0 +1,16 @@
+[Unit]
+Description=ROS2 pan_tilt: camera pan-tilt on SparkFun Servo pHAT (PCA9685)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+Environment=PYTHONUNBUFFERED=1 RCUTILS_LOGGING_BUFFERED_STREAM=0
+ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run pan_tilt pan_tilt_node"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

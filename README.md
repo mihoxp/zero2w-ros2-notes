@@ -9,6 +9,7 @@ Zero 2 W 搭配 DFRobot 馬達驅動板、UPS-Lite、Waveshare USB HUB HAT 與 E
 |---|---|---|
 | Raspberry Pi Zero 2 W Rev 1.0 | — | 4 核、414 MB RAM |
 | DFRobot DC Motor Driver HAT（DFR0592） | I2C | `0x10` |
+| SparkFun Servo pHAT（PCA9685），鏡頭雲台 | I2C | `0x40`（+ All-Call `0x70`） |
 | UPS-Lite v1.3（CW2015 電量計） | I2C + GPIO4 | `0x62` |
 | Waveshare USB HUB HAT（Hub：FE1.1s `1a40:0101`，序列埠：CP2102） | USB / UART | 4 口 Hub |
 | ESP32-S3 相機板（CH340 `1a86:7523`，OV3660） | USB（接 HUB HAT） | `/dev/ttyUSB0` |
@@ -227,6 +228,29 @@ sudo journalctl -u color-vision -f
 - `package.xml` 的 XML 註解裡不能有 `--`，否則 colcon 解析失敗、套件不會註冊到 ROS2（`Package not found`）
 - Zero 2W 上 `ros2 topic echo` 啟動約 7 秒，用 `timeout` 測試要給足時間
 - 實體紅綠燈模型的燈罩本身有顏色，沒亮的燈也會被當成候選；`lamp` 模式還需要比較亮度才能分出哪顆亮著
+
+## 8.7 鏡頭雲台（SparkFun Servo pHAT，PCA9685）
+
+- I2C：`0x40` = PCA9685（7 個暫存器開機時都是資料手冊預設值，MODE1 `0x11` 休眠、PRE_SCALE `0x1E` ≈ 197 Hz）；`0x70` = PCA9685 的 All-Call 位址，不是另一個裝置
+- 伺服馬達用 50 Hz：PRE_SCALE = round(25 MHz / (4096 × 50)) − 1 = **121**，只能在休眠時寫入
+- 通道 0 = 水平（1.8 ms 往左），通道 1 = 垂直（1.2 ms 往上）
+- 伺服馬達電源要另外接（pHAT 的 USB-C），不要只靠 Pi 的 5V
+
+ROS2 節點 `ros2 run pan_tilt pan_tilt_node`：
+
+| Topic | 型別 | 說明 |
+|---|---|---|
+| `/pan_tilt/cmd` | `geometry_msgs/Vector3` | `x` = 水平、`y` = 垂直（度，正值 = 左 / 上） |
+| `/pan_tilt/state` | `geometry_msgs/Vector3` | 目前角度（10 Hz） |
+
+```bash
+ros2 topic pub --once /pan_tilt/cmd geometry_msgs/msg/Vector3 "{x: 30.0, y: 10.0}"
+```
+
+參數：`pan_min`/`pan_max`（±45°）、`tilt_min`/`tilt_max`（±30°）、`max_speed`（90°/s）、`us_per_degree`（11.1）、`pan_center_us`/`tilt_center_us`（1500）、`pan_channel`/`tilt_channel`
+
+- 啟動時回中間，結束時放鬆伺服馬達（PWM full OFF）
+- 實測：水平 ±30°、垂直 ±20° 方向與幅度正確
 
 ## 9. V7RC 藍牙遙控（ROS2）
 

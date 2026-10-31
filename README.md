@@ -316,7 +316,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
   - 想看 App 實際送出的數值：`v7rc_bridge` 加 `-p log_channels:=true`（也會記錄其他模式的原始封包）
 - 實測搖桿：前進推到底 `linear.x = 0.30`，右轉推到底 `angular.z = -3.00`，輕推原地轉從約 2.4 rad/s 起跳
 - DFR0592 暫存器：`0x03` 模式、`0x0E` PWM 頻率/50、`0x0F`/`0x12` 方向（1 CW、2 CCW、5 STOP）、`0x10`/`0x13` 占空比 [整數%, 十分位]
-- **待辦**：馬達裝好後架高測試左右輪與方向（預設 M1 左、M2 右、右輪反轉），再調 `max_wheel_speed`、`wheel_separation`
+- 馬達對應（實測，架高後單顆測試）：**M1 = 右輪**（CW 往前）、**M2 = 左輪**（CW 往後）
+  → `left_motor:=2 right_motor:=1 invert_left:=true invert_right:=false`（寫在 `scripts/v7rc_start.sh`）
+- `/cmd_vel` 實測：前進、後退、原地左轉（左輪後、右輪前）、原地右轉都正確，馬達轉動時沒有 under-voltage
+- **待辦**：地面實測距離與轉速，調 `max_wheel_speed`、`wheel_separation`（目前是估計值 0.5 m/s、0.15 m）
 
 ## 10. 其他注意事項
 

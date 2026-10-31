@@ -5,8 +5,11 @@ source /home/pi/ros2_ws/install/setup.bash
 
 LOG=/tmp/v7rc_car
 mkdir -p $LOG
+# Measured on the car: M1 = right wheel (CW = forward), M2 = left wheel (CW = backward)
 ros2 run dfrobot_motor_driver motor_driver --ros-args \
-    -p wheel_separation:=0.15 -p max_wheel_speed:=0.5 > $LOG/motor_driver.log 2>&1 &
+    -p wheel_separation:=0.15 -p max_wheel_speed:=0.5 \
+    -p left_motor:=2 -p right_motor:=1 -p invert_left:=true -p invert_right:=false \
+    > $LOG/motor_driver.log 2>&1 &
 ros2 run v7rc_bridge v7rc_bridge --ros-args \
     -p track_width:=0.15 > $LOG/v7rc_bridge.log 2>&1 &
 

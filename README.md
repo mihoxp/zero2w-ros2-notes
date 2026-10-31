@@ -187,6 +187,7 @@ pip3 install --user --no-deps opencv-python-headless==4.10.0.84
 | `/traffic_light/state` | `std_msgs/String` | `red` / `yellow` / `green` / `none`（連續 3 張相同才切換） |
 | `/color_detections` | `std_msgs/String` | JSON：`[{"color","x","y","w","h","score"}]`，原始解析度座標，分數高的在前 |
 | `/color_vision/image/compressed` | `sensor_msgs/CompressedImage` | 標註後的 JPEG（`publish_image:=true`，預設 2 Hz） |
+| （HTTP）`:8080/` | MJPEG | 給 V7RC 或瀏覽器看的即時影像（見下方） |
 
 開機自動啟動：`systemd/color-vision.service`（`User=pi`，預設不發布影像）
 
@@ -199,6 +200,17 @@ sudo journalctl -u color-vision -f
 實測：開機約 1 分鐘後開始發布，三個服務（color-vision、v7rc-car、v7rc-ble）同時執行時約 21 FPS，可用記憶體約 107 MB
 
 參數：`mode`（`objects` 預設／`lamp`）、`width`/`height`、`detect_scale`（0.5）、`stable_frames`（3）、`min_score`（5）、`publish_image`、`image_rate`
+
+### MJPEG 影像串流（V7RC 視訊）
+
+`color_detector` 內建 MJPEG HTTP 伺服器（`color_vision/mjpeg_server.py`），共用同一台攝影機：
+
+- 網址：`http://<Zero 的 IP>:8080/`（任何路徑都回傳串流；`/snapshot` 回傳單張 JPEG）
+- 640×480，畫上色塊與 AprilTag 標記；實測約 **8.8 fps、200 KB/s**
+- 只有在有人觀看時才壓縮 JPEG，沒人看不耗 CPU
+- 參數：`mjpeg_port`（8080，0 = 關閉）、`mjpeg_rate`（10）、`mjpeg_quality`（70）、`mjpeg_annotated`（true）
+- **V7RC**：手機 WiFi 連到和 Zero 同一個網路，在 App 的視訊網址填 `http://192.168.0.107:8080/`，藍牙照常連 `Zero2W-Rover` 控制 → 實測可以同時遙控與看到畫面
+- Zero 的 IP 由 DHCP 分配，會變（曾經從 .102 變 .107），建議在路由器設定固定 IP
 
 ### AprilTag 指令標記
 

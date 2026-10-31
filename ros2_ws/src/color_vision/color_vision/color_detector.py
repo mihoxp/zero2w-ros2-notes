@@ -25,6 +25,10 @@ Parameters
   tag_commands   "id:COMMAND" entries; other IDs are reported in tag_detections only
   tag_rate       maximum tag detections per second (limits CPU use)
   tag_repeat_after  seconds a tag must be gone before its command is published again
+  mjpeg_port     HTTP MJPEG stream port for the V7RC video view (default 8080, 0 = off);
+                 any path streams, /snapshot returns one JPEG; only encodes while watched
+  mjpeg_rate, mjpeg_quality, mjpeg_annotated  stream frame rate (10), JPEG quality (70),
+                 draw detections on the stream (true)
 """
 import json
 import threading
@@ -38,6 +42,7 @@ from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 
 from . import traffic_light
+from .mjpeg_server import MjpegServer
 from .ov5647_camera import OV5647Camera
 
 
@@ -77,6 +82,14 @@ class ColorDetector(Node):
         self.frame_ready = threading.Condition()
         self.tag_boxes = []  # last detected tag corners and ids, for the annotated image
 
+        # MJPEG stream for the V7RC app's video view (or any browser)
+        self.frame_width = width
+        mjpeg_port = p("mjpeg_port", 8080).value
+        self.mjpeg_period = 1.0 / max(p("mjpeg_rate", 10.0).value, 0.5)
+        self.mjpeg_quality = p("mjpeg_quality", 70).value
+        self.mjpeg_annotated = p("mjpeg_annotated", True).value
+        self.mjpeg = MjpegServer(mjpeg_port, self.get_logger()) if mjpeg_port else None
+
         self.camera = OV5647Camera(width, height)
         self.running = True
         self.thread = threading.Thread(target=self.loop, daemon=True)
@@ -86,7 +99,8 @@ class ColorDetector(Node):
             self.tag_thread.start()
         self.get_logger().info(f"color_detector started: mode={self.mode}, {width}x{height}, "
                                f"detect at x{self.scale}, publish_image={self.publish_image}, "
-                               f"tags={family} {self.tag_commands if self.enable_tags else 'off'}")
+                               f"tags={family} {self.tag_commands if self.enable_tags else 'off'}, "
+                               f"mjpeg={'http://0.0.0.0:%d/' % mjpeg_port if mjpeg_port else 'off'}")
 
     def tag_loop(self):
         last_seen = {}  # tag id -> last time it was detected
@@ -127,8 +141,21 @@ class ColorDetector(Node):
                 raise
             # Shutting down: publishers become invalid while a frame is in flight
 
+    def annotate(self, image, found, colour_scale):
+        """Draw colour detections (found in detect-frame pixels, scaled by colour_scale) and the
+        latest AprilTags (full-frame pixels) on a copy of image."""
+        tag_scale = image.shape[1] / self.frame_width
+        out = traffic_light.annotate(image, [
+            (c, tuple(int(v * colour_scale) for v in box), s) for c, box, s in found])
+        for c, tag_id in self.tag_boxes:
+            pts = (c.reshape(4, 2) * tag_scale).astype(int)
+            cv2.polylines(out, [pts], True, (255, 0, 255), 2)
+            label = self.tag_commands.get(tag_id, f"id {tag_id}")
+            cv2.putText(out, label, tuple(pts[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+        return out
+
     def _loop(self):
-        last_state, last_image, last_log = None, 0.0, time.monotonic()
+        last_state, last_image, last_stream, last_log = None, 0.0, 0.0, time.monotonic()
         frames = 0
         for _ in range(20):  # let auto exposure settle before reporting
             self.camera.read()
@@ -153,14 +180,14 @@ class ColorDetector(Node):
             self.state_pub.publish(String(data=state))
 
             now = time.monotonic()
+            if self.mjpeg and self.mjpeg.wanted and now - last_stream >= self.mjpeg_period:
+                view = self.annotate(frame, found, 1.0 / self.scale) if self.mjpeg_annotated else frame
+                ok, jpg = cv2.imencode(".jpg", view, [cv2.IMWRITE_JPEG_QUALITY, self.mjpeg_quality])
+                if ok:
+                    self.mjpeg.publish(jpg.tobytes())
+                last_stream = now
             if self.publish_image and now - last_image >= self.image_period:
-                annotated = traffic_light.annotate(small, found)
-                for c, tag_id in self.tag_boxes:
-                    pts = (c.reshape(4, 2) * self.scale).astype(int)
-                    cv2.polylines(annotated, [pts], True, (255, 0, 255), 2)
-                    label = self.tag_commands.get(tag_id, f"id {tag_id}")
-                    cv2.putText(annotated, label, tuple(pts[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
-                ok, jpg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                ok, jpg = cv2.imencode(".jpg", self.annotate(small, found, 1.0), [cv2.IMWRITE_JPEG_QUALITY, 70])
                 if ok:
                     msg = CompressedImage(format="jpeg", data=jpg.tobytes())
                     msg.header.stamp = self.get_clock().now().to_msg()
@@ -178,6 +205,8 @@ class ColorDetector(Node):
         self.thread.join(timeout=2)
         if self.enable_tags:
             self.tag_thread.join(timeout=2)
+        if self.mjpeg:
+            self.mjpeg.close()
         self.camera.release()
 
 

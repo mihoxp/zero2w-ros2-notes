@@ -319,7 +319,18 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
 - 馬達對應（實測，架高後單顆測試）：**M1 = 右輪**（CW 往前）、**M2 = 左輪**（CW 往後）
   → `left_motor:=2 right_motor:=1 invert_left:=true invert_right:=false`（寫在 `scripts/v7rc_start.sh`）
 - `/cmd_vel` 實測：前進、後退、原地左轉（左輪後、右輪前）、原地右轉都正確，馬達轉動時沒有 under-voltage
-- **待辦**：地面實測距離與轉速，調 `max_wheel_speed`、`wheel_separation`（目前是估計值 0.5 m/s、0.15 m）
+- 底盤：Pololu Zumo（只有底盤），75:1 HP 有編碼器的減速馬達，馬達電源 7.4 V；履帶中心距 **8.5 cm**（`wheel_separation`、`track_width` 都設 0.085）
+- 編碼器（接 DFR0592 的編碼器輸入，減速比暫存器設 75）讀數，架高空轉：
+
+  | 占空比 | M1（右） | M2（左） |
+  |---|---|---|
+  | 30% | −44.3 | −49.1 |
+  | 50% | −86.7 | −91.5 |
+  | 80% | −150.0 | −156.0 |
+
+  右輪比左輪慢 4–10%。讀數是 DFRobot 以自家編碼器規格換算的「RPM」，和 Pololu 編碼器（12 CPR）可能差一個固定倍數，需用實際距離校正。
+  第一次測 M1 讀數隨速度**下降**（129 → 69 → 22），是編碼器接線問題，重新接好後正常
+- **待辦**：用地面行駛距離或履帶圈數校正編碼器換算與 `max_wheel_speed`（目前仍是 0.5 m/s）
 
 ## 10. 其他注意事項
 

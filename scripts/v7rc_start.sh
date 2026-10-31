@@ -7,8 +7,10 @@ LOG=/tmp/v7rc_car
 mkdir -p $LOG
 # Pololu Zumo chassis, 75:1 HP motors at 7.4 V; track centres 8.5 cm apart (measured)
 # Measured on the car: M1 = right wheel (CW = forward), M2 = left wheel (CW = backward)
+# Lifted calibration: ~181 RPM at 100 % duty x ~12.1 cm per sprocket turn -> ~0.36 m/s;
+# motion starts at ~8 % duty
 ros2 run dfrobot_motor_driver motor_driver --ros-args \
-    -p wheel_separation:=0.085 -p max_wheel_speed:=0.5 \
+    -p wheel_separation:=0.085 -p max_wheel_speed:=0.36 -p min_duty:=8.0 \
     -p left_motor:=2 -p right_motor:=1 -p invert_left:=true -p invert_right:=false \
     > $LOG/motor_driver.log 2>&1 &
 ros2 run v7rc_bridge v7rc_bridge --ros-args \

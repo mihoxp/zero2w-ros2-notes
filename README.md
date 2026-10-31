@@ -211,6 +211,12 @@ sudo journalctl -u color-vision -f
 - 參數：`mjpeg_port`（8080，0 = 關閉）、`mjpeg_rate`（10）、`mjpeg_quality`（70）、`mjpeg_annotated`（true）
 - **V7RC**：手機 WiFi 連到和 Zero 同一個網路，在 App 的視訊網址填 `http://192.168.0.107:8080/`，藍牙照常連 `Zero2W-Rover` 控制 → 實測可以同時遙控與看到畫面
 - Zero 的 IP 由 DHCP 分配，會變（曾經從 .102 變 .107），建議在路由器設定固定 IP
+- **暗處畫面像黑白**：原本曝光上限 500 行（約 33 ms），暗處亮度只有 22/255、幾乎沒有顏色。
+  OV5647 的曝光上限 = `vertical_blanking` + 476 行，所以自動曝光改成三階段：
+  1. 正常光線：曝光 ≤ 500、增益 ≤ 8×，維持全速
+  2. 較暗：增益固定 8×，加大 vertical blanking 延長曝光（最多 1476 行，約 10 fps）
+  3. 更暗：曝光最長，再加增益
+  實測同一個暗場景：亮度 22 → 69/255，顏色差 4.6 → 15.4，恢復彩色；串流仍約 8.8 fps
 
 ### AprilTag 指令標記
 

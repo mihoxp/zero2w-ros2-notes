@@ -301,7 +301,7 @@ time,uptime_s,throttled,flags,core_v,temp_c,battery_v,battery_pct,ext_power
 
 | 檔案 | 說明 |
 |---|---|
-| `ros2_ws/src/dfrobot_motor_driver/` | `/cmd_vel` → DFR0592，開迴路差速（不使用編碼器），0.5 秒沒指令停車 |
+| `ros2_ws/src/dfrobot_motor_driver/` | `/cmd_vel` → DFR0592，差速 + 編碼器 PI 速度控制，發布 `/wheel_speeds`，0.5 秒沒指令停車 |
 | `ros2_ws/src/v7rc_bridge/` | V7RC 車輛（`SRV`）/ 坦克（`SRT`）模式 → `/cmd_vel` + 鏡頭雲台，斷線停車、死區、原地轉最低輪速 |
 | `scripts/v7rc_ble_relay.py` | BlueZ D-Bus 的 Nordic UART 服務，名稱由 `V7RC_BLE_NAME` 設定 |
 | `scripts/v7rc_start.sh` | 啟動 motor_driver + v7rc_bridge（含參數） |
@@ -333,7 +333,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
   - 雲台相關參數：`pan_tilt_enable`、`pan_input`/`tilt_input`（3/4）、`invert_pan`/`invert_tilt`、`pan_tilt_rate`、`pan_min`/`pan_max`、`tilt_min`/`tilt_max`
   - 想看 App 實際送出的數值：`v7rc_bridge` 加 `-p log_channels:=true`（也會記錄其他模式的原始封包）
 - 實測搖桿：前進推到底 `linear.x = 0.30`，右轉推到底 `angular.z = -3.00`，輕推原地轉從約 2.4 rad/s 起跳
-- DFR0592 暫存器：`0x03` 模式、`0x0E` PWM 頻率/50、`0x0F`/`0x12` 方向（1 CW、2 CCW、5 STOP）、`0x10`/`0x13` 占空比 [整數%, 十分位]
+- DFR0592 暫存器：`0x03` 模式、`0x0E` PWM 頻率/50、`0x0F`/`0x12` 方向（1 CW、2 CCW、5 STOP）、`0x10`/`0x13` 占空比 [整數%, 十分位]、`0x04`/`0x09` 編碼器啟用、`0x07`/`0x0C` 減速比、`0x05`/`0x0A` 編碼器速度（有號 16 位元，CW 為負）
 - 馬達對應（實測，架高後單顆測試）：**M1 = 右輪**（CW 往前）、**M2 = 左輪**（CW 往後）
   → `left_motor:=2 right_motor:=1 invert_left:=true invert_right:=false`（寫在 `scripts/v7rc_start.sh`）
 - `/cmd_vel` 實測：前進、後退、原地左轉（左輪後、右輪前）、原地右轉都正確，馬達轉動時沒有 under-voltage
@@ -353,7 +353,20 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
   - 比 75:1 HP 規格（6 V 約 0.65 m/s）低很多，原因未確認（電源限流、驅動板 PWM、或馬達不是 HP 版）
   - 約 8% 占空比才開始轉
   - 設定：`max_wheel_speed:=0.36 min_duty:=8.0`
-- **待辦**：地面實測（有負重）確認速度；考慮用編碼器做閉迴路，修正右輪比左輪慢 4–10%
+- **速度閉迴路（PI）**：DFR0592 沒有內建 PID（`speed` 只是占空比），所以在 `motor_driver` 裡做
+  - 每輪：占空比 = 前饋（目標速度 / `max_wheel_speed`，加 `min_duty`）+ PI 修正（`kp`·誤差 + `ki`·積分，限制 ±`max_correction`%），20 Hz
+  - 編碼器速度約每 **300 ms** 才更新一次（實測），所以增益保持低，主要靠前饋即時反應；修正量不會讓輪子反轉，目標為 0 時直接停並清積分
+  - 參數：`use_pid`（true）、`kp`（50 %/(m/s)）、`ki`（100）、`max_correction`（30）、`encoder_rpm_scale`（0.91）、`wheel_circumference`（0.121 m）、`encoder_sign`（−1）、`control_rate`（20）、`encoder_ratio`（75）
+  - `/wheel_speeds`（`geometry_msgs/Vector3`：x = 左、y = 右，實測 m/s，+ = 前進）
+  - 架高實測，目標 0.15 m/s 前進 8 秒，最後 4 秒平均：
+
+    | | 左 | 右 | 左−右 |
+    |---|---|---|---|
+    | 開迴路（`use_pid:=false`） | 0.150 | 0.174 | −0.024 |
+    | PI（預設） | 0.151 | 0.150 | +0.001 |
+
+  - 注意：同一時間只能有一個 `motor_driver`。兩個節點會互搶馬達，而且 I2C 讀暫存器是「先寫位址再讀」兩步，跨行程交錯會讀到錯的值。測試前先 `sudo systemctl stop v7rc-car`
+- **待辦**：地面實測（有負重）確認速度與 PI 增益
 
 ## 10. 其他注意事項
 

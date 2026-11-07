@@ -269,7 +269,7 @@ ros2 topic pub --once /pan_tilt/cmd geometry_msgs/msg/Vector3 "{x: 30.0, y: 10.0
 
 - 啟動時回中間，結束時放鬆伺服馬達（PWM full OFF）
 - 實測：水平 ±30°、垂直 ±20° 方向與幅度正確
-- 開機自動啟動：`systemd/pan-tilt.service`
+- 開機自動啟動：`systemd/pan-tilt.service`；開機約 50 秒回中間（在那之前伺服馬達沒有訊號，停在關機前的位置）。如果要等到 4 分鐘左右才回中間，見「10. 其他注意事項」的開機卡 3 分鐘
 
 ### ⚠️ Servo pHAT 供電
 
@@ -373,6 +373,17 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
 - 接了 UPS 的 Pi 拔電源不會斷電，關機請用 `sudo shutdown -h now`，等綠燈熄滅再關 UPS 開關
 - `dmesg` 需要 sudo（Ubuntu 預設限制）
 - 硬體狀態：`vcgencmd get_throttled` 應為 `0x0`
+- **開機卡 90–180 秒**（`dmesg` 裡 `Run /init` 和 `EXT4-fs (mmcblk0p2): mounted` 之間空白很久）：
+  - 原因：Ubuntu 映像檔的 `/etc/overlayroot.local.conf` 寫了 `overlayroot_cfgdisk=LABEL=OROOTCFG`。initramfs 的 overlayroot 每次開機都去找這顆不存在的設定磁碟，找之前先執行 `udevadm settle`，等所有裝置事件處理完；這台常有事件拖很久，就卡到逾時
+  - `/run/initramfs/overlayroot.log` 會顯示 `get_cfg(LABEL=OROOTCFG): not present`
+  - 修正（overlayroot 本來就是停用的，這只關掉找設定磁碟這一步；設定在開機時直接從根目錄讀，不用重建 initramfs）：
+    ```bash
+    sudo cp -n /etc/overlayroot.local.conf /etc/overlayroot.local.conf.bak
+    sudo sed -i 's/^overlayroot_cfgdisk=.*/overlayroot_cfgdisk=disabled/' /etc/overlayroot.local.conf
+    ```
+  - 修正前最近 4 次開機有 3 次卡住，開機約 190 秒才掛載根目錄、236 秒雲台才回中間；修正後兩次開機都是 8.8 秒掛載，雲台 51–54 秒回中間
+  - 不要用在開機參數加 `debug` 的方式查：輸出太多，系統慢到 SSH 連不上
+- WiFi 偶爾連上了（`wpa_state=COMPLETED`）卻拿不到 IPv4（實測一次，前面有一筆 `ASSOC-REJECT status_code=16`）：從序列埠執行 `sudo wpa_cli -i wlan0 reassociate` 就會恢復
 
 ## tools/
 

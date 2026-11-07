@@ -329,8 +329,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now v7rc-car v7rc-ble
     |---|---|---|
     | CH1 | 左搖桿 左／右 | 轉向（同車輛模式的 CH1） |
     | CH2 | 左搖桿 上／下 | 前進／後退 |
-    | CH3 | 右搖桿 左／右 | 鏡頭水平（往右推 = 往右轉，`invert_pan` 預設 true） |
-    | CH4 | 右搖桿 上／下 | 鏡頭垂直（往上推 = 往上） |
+    | CH3 | 右搖桿 上／下 | 鏡頭垂直（往上推 = 往上） |
+    | CH4 | 右搖桿 左／右 | 鏡頭水平（往右推 = 往右轉，`invert_pan` 預設 true） |
+
+    2026-11-07 重新實測，右搖桿的 CH3/CH4 跟第一次量的相反，所以 `scripts/v7rc_start.sh` 帶 `-p pan_input:=4 -p tilt_input:=3`（程式預設仍是 3/4）。如果又變成「上下推 → 左右轉」，把這兩個值對調即可
 
     鏡頭是**速度模式**：推越多轉越快（滿推 60°/s），放開就停在原角度；發布到 `/pan_tilt/cmd`
   - 雲台相關參數：`pan_tilt_enable`、`pan_input`/`tilt_input`（3/4）、`invert_pan`/`invert_tilt`、`pan_tilt_rate`、`pan_min`/`pan_max`、`tilt_min`/`tilt_max`

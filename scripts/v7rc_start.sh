@@ -14,7 +14,7 @@ ros2 run dfrobot_motor_driver motor_driver --ros-args \
     -p left_motor:=2 -p right_motor:=1 -p invert_left:=true -p invert_right:=false \
     > $LOG/motor_driver.log 2>&1 &
 ros2 run v7rc_bridge v7rc_bridge --ros-args \
-    -p track_width:=0.085 > $LOG/v7rc_bridge.log 2>&1 &
+    -p track_width:=0.085 -p pan_input:=4 -p tilt_input:=3 > $LOG/v7rc_bridge.log 2>&1 &
 
 trap 'kill $(jobs -p) 2>/dev/null; wait; exit 0' TERM INT
 echo "motor_driver + v7rc_bridge started, logs in $LOG"

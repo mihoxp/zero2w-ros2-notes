@@ -8,7 +8,7 @@ StartLimitIntervalSec=0
 Type=simple
 User=pi
 Environment=PYTHONUNBUFFERED=1 RCUTILS_LOGGING_BUFFERED_STREAM=0
-ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run pan_tilt pan_tilt_node --ros-args -p tilt_center_us:=1889"
+ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run pan_tilt pan_tilt_node --ros-args -p tilt_center_us:=1889 -p pan_center_us:=1556"
 Restart=on-failure
 RestartSec=5
 

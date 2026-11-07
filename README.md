@@ -270,7 +270,7 @@ ros2 topic pub --once /pan_tilt/cmd geometry_msgs/msg/Vector3 "{x: 30.0, y: 10.0
 - 啟動時回中間，結束時放鬆伺服馬達（PWM full OFF）
 - 實測：水平 ±30°、垂直 ±20° 方向與幅度正確
 - 安裝支架時：先讓兩顆伺服馬達停在 1500 µs（`ros2 topic pub --once /pan_tilt/cmd geometry_msgs/msg/Vector3 "{x: 0.0, y: 0.0}"`），再把舵盤對正套上；通道 0 = 水平、通道 1 = 垂直，插反會變成先上下、再左右
-- 中間位置微調：約 11 µs / 度，垂直往下加、往上減。目前鏡頭中間位置往下 10°，`systemd/pan-tilt.service` 帶 `-p tilt_center_us:=1611`
+- 中間位置微調：約 11 µs / 度，垂直往下加、往上減。目前鏡頭中間位置往下 20°，`systemd/pan-tilt.service` 帶 `-p tilt_center_us:=1722`
 - 開機自動啟動：`systemd/pan-tilt.service`；開機約 50 秒回中間（在那之前伺服馬達沒有訊號，停在關機前的位置）。如果要等到 4 分鐘左右才回中間，見「10. 其他注意事項」的開機卡 3 分鐘
 
 ### ⚠️ Servo pHAT 供電

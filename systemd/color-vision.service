@@ -10,7 +10,7 @@ User=pi
 # Without these the node's log lines sit in a buffer and never reach the journal
 Environment=PYTHONUNBUFFERED=1 RCUTILS_LOGGING_BUFFERED_STREAM=0
 # Annotated image off by default to save CPU; add -p publish_image:=true to view it
-ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run color_vision color_detector --ros-args -p mode:=objects"
+ExecStart=/bin/bash -c "source /opt/ros/humble/setup.bash && source /home/pi/ros2_ws/install/setup.bash && exec ros2 run color_vision color_detector --ros-args -p mode:=objects -p rotate:=90"
 Restart=on-failure
 RestartSec=5
 

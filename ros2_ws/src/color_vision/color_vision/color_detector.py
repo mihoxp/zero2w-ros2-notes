@@ -16,6 +16,8 @@ keeps its frame rate.
 Parameters
   mode           "objects" (painted blocks / signs, default) or "lamp" (lit traffic light lamps)
   width, height  sensor mode (640x480 default)
+  rotate         rotate every frame clockwise by 0 / 90 / 180 / 270 degrees before detection and
+                 streaming (camera mounted sideways or upside down); detections use rotated pixels
   detect_scale   detection runs on a downscaled frame (0.5 -> 320x240)
   stable_frames  frames a state must persist before traffic_light/state changes
   min_score      weaker candidates are ignored
@@ -45,6 +47,8 @@ from . import traffic_light
 from .mjpeg_server import MjpegServer
 from .ov5647_camera import OV5647Camera
 
+ROTATIONS = {0: None, 90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
+
 
 class ColorDetector(Node):
     def __init__(self):
@@ -62,6 +66,10 @@ class ColorDetector(Node):
         self.stable = traffic_light.StableState(p("stable_frames", 3).value)
         if self.mode not in ("objects", "lamp"):
             raise ValueError("mode must be 'objects' or 'lamp'")
+        rotate = p("rotate", 0).value % 360
+        if rotate not in ROTATIONS:
+            raise ValueError("rotate must be 0, 90, 180 or 270")
+        self.rotation = ROTATIONS[rotate]
         self.detect = traffic_light.detect_objects if self.mode == "objects" else traffic_light.detect
 
         self.state_pub = self.create_publisher(String, "traffic_light/state", 10)
@@ -83,7 +91,7 @@ class ColorDetector(Node):
         self.tag_boxes = []  # last detected tag corners and ids, for the annotated image
 
         # MJPEG stream for the V7RC app's video view (or any browser)
-        self.frame_width = width
+        self.frame_width = height if rotate in (90, 270) else width
         mjpeg_port = p("mjpeg_port", 8080).value
         self.mjpeg_period = 1.0 / max(p("mjpeg_rate", 10.0).value, 0.5)
         self.mjpeg_quality = p("mjpeg_quality", 70).value
@@ -97,7 +105,7 @@ class ColorDetector(Node):
         if self.enable_tags:
             self.tag_thread = threading.Thread(target=self.tag_loop, daemon=True)
             self.tag_thread.start()
-        self.get_logger().info(f"color_detector started: mode={self.mode}, {width}x{height}, "
+        self.get_logger().info(f"color_detector started: mode={self.mode}, {width}x{height} rotated {rotate}, "
                                f"detect at x{self.scale}, publish_image={self.publish_image}, "
                                f"tags={family} {self.tag_commands if self.enable_tags else 'off'}, "
                                f"mjpeg={'http://0.0.0.0:%d/' % mjpeg_port if mjpeg_port else 'off'}")
@@ -161,6 +169,8 @@ class ColorDetector(Node):
             self.camera.read()
         while self.running and rclpy.ok():
             frame = self.camera.read()
+            if self.rotation is not None:
+                frame = cv2.rotate(frame, self.rotation)
             if self.enable_tags:  # tag thread always works on the newest full-resolution frame
                 with self.frame_ready:
                     self.latest_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

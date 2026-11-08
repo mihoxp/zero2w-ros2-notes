@@ -209,6 +209,7 @@ sudo journalctl -u color-vision -f
 - 640×480，畫上色塊與 AprilTag 標記；實測約 **8.8 fps、200 KB/s**
 - 只有在有人觀看時才壓縮 JPEG，沒人看不耗 CPU
 - 參數：`mjpeg_port`（8080，0 = 關閉）、`mjpeg_rate`（10）、`mjpeg_quality`（70）、`mjpeg_annotated`（true）
+- 畫面旋轉：`rotate`（0 / 90 / 180 / 270，順時針）。一拿到畫面就轉，所以串流、顏色辨識、AprilTag 都用轉過的畫面，偵測座標也是轉過後的像素。相機側裝，`systemd/color-vision.service` 帶 `-p rotate:=90`，畫面變成直的 480×640；轉反了就改 270
 - **V7RC**：手機 WiFi 連到和 Zero 同一個網路，在 App 的視訊網址填 `http://192.168.0.107:8080/`，藍牙照常連 `Zero2W-Rover` 控制 → 實測可以同時遙控與看到畫面
 - Zero 的 IP 由 DHCP 分配，會變（曾經從 .102 變 .107），建議在路由器設定固定 IP
 - **暗處畫面像黑白**：原本曝光上限 500 行（約 33 ms），暗處亮度只有 22/255、幾乎沒有顏色。
